@@ -95,9 +95,16 @@ async def entrypoint(ctx: JobContext):
                         agent.say("How do I sound now?", allow_interruptions=True)
                     )
 
-    # ✅ Explicitly join the same room as frontend
+    # ✅ Explicitly join the same room as frontend, with debug logs
     room_name = os.getenv("ROOM_NAME", "cartesia-room")
-    await ctx.connect(room_name=room_name)
+    logger.info(f"Attempting to connect to room: {room_name}")
+
+    try:
+        await ctx.connect(room_name=room_name)
+        logger.info(f"Successfully connected to room: {room_name}")
+    except Exception as e:
+        logger.error(f"Failed to connect to room: {room_name} — {e}")
+        return
 
     @agent.on("agent_started_speaking")
     def agent_started_speaking():
