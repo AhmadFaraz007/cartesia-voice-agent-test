@@ -24,7 +24,6 @@ def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
     # fetch cartesia voices
-
     headers = {
         "X-API-Key": os.getenv("CARTESIA_API_KEY", ""),
         "Cartesia-Version": "2024-08-01",
@@ -96,7 +95,9 @@ async def entrypoint(ctx: JobContext):
                         agent.say("How do I sound now?", allow_interruptions=True)
                     )
 
-    await ctx.connect()
+    # ✅ Explicitly join the same room as frontend
+    room_name = os.getenv("ROOM_NAME", "cartesia-room")
+    await ctx.connect(room_name=room_name)
 
     @agent.on("agent_started_speaking")
     def agent_started_speaking():
