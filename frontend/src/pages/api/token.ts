@@ -25,9 +25,8 @@ export default async function handleToken(
       return;
     }
 
-    const roomName = `cartesia-${generateRandomAlphanumeric(
-      4
-    )}-${generateRandomAlphanumeric(4)}`;
+    // ✅ Fixed room name instead of random
+    const roomName = "cartesia-room";
     const identity = `user-${generateRandomAlphanumeric(4)}`;
 
     const grant: VideoGrant = {
@@ -40,10 +39,7 @@ export default async function handleToken(
     };
 
     const token = await createToken({ identity }, grant);
-    const result: TokenResult = {
-      identity,
-      accessToken: token,
-    };
+    const result: TokenResult = { identity, accessToken: token };
 
     res.status(200).json(result);
   } catch (e) {
