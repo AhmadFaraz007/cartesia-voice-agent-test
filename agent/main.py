@@ -2,13 +2,11 @@ import asyncio
 import json
 import os
 import requests
+import typer
 
 from livekit import rtc
 from livekit.agents import JobContext, WorkerOptions, cli, JobProcess
-from livekit.agents.llm import (
-    ChatContext,
-    ChatMessage,
-)
+from livekit.agents.llm import ChatContext, ChatMessage
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.agents.log import logger
 from livekit.plugins import deepgram, silero, cartesia, openai
@@ -17,6 +15,7 @@ from typing import List, Any
 from dotenv import load_dotenv
 
 load_dotenv()
+app = typer.Typer()
 
 
 def prewarm(proc: JobProcess):
@@ -47,9 +46,7 @@ async def entrypoint(ctx: JobContext):
     )
     cartesia_voices: List[dict[str, Any]] = ctx.proc.userdata["cartesia_voices"]
 
-    tts = cartesia.TTS(
-        model="sonic-2",
-    )
+    tts = cartesia.TTS(model="sonic-2")
     agent = VoicePipelineAgent(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
@@ -65,7 +62,6 @@ async def entrypoint(ctx: JobContext):
     def on_participant_attributes_changed(
         changed_attributes: dict[str, str], participant: rtc.Participant
     ):
-        # check for attribute changes from the user itself
         if participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD:
             return
 
@@ -84,18 +80,14 @@ async def entrypoint(ctx: JobContext):
                 logger.warning(f"Voice {voice_id} not found")
                 return
             if "embedding" in voice_data:
-                language = "en"
-                if "language" in voice_data and voice_data["language"] != "en":
-                    language = voice_data["language"]
+                language = voice_data.get("language", "en")
                 tts._opts.voice = voice_data["embedding"]
                 tts._opts.language = language
-                # allow user to confirm voice change as long as no one is speaking
                 if not (is_agent_speaking or is_user_speaking):
                     asyncio.create_task(
                         agent.say("How do I sound now?", allow_interruptions=True)
                     )
 
-    # ✅ Explicitly join the same room as frontend, with debug logs
     room_name = os.getenv("ROOM_NAME", "cartesia-room")
     logger.info(f"Attempting to connect to room: {room_name}")
 
@@ -126,15 +118,7 @@ async def entrypoint(ctx: JobContext):
         nonlocal is_user_speaking
         is_user_speaking = False
 
-    # set voice listing as attribute for UI
-    voices = []
-    for voice in cartesia_voices:
-        voices.append(
-            {
-                "id": voice["id"],
-                "name": voice["name"],
-            }
-        )
+    voices = [{"id": v["id"], "name": v["name"]} for v in cartesia_voices]
     voices.sort(key=lambda x: x["name"])
     await ctx.room.local_participant.set_attributes({"voices": json.dumps(voices)})
 
@@ -142,5 +126,10 @@ async def entrypoint(ctx: JobContext):
     await agent.say("Hi there, how are you doing today?", allow_interruptions=True)
 
 
-if __name__ == "__main__":
+@app.command()
+def start():
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+
+
+if __name__ == "__main__":
+    app()
