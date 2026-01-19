@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import requests
-import typer
 
 from livekit import rtc
 from livekit.agents import JobContext, WorkerOptions, cli, JobProcess
@@ -15,7 +14,6 @@ from typing import List, Any
 from dotenv import load_dotenv
 
 load_dotenv()
-app = typer.Typer()
 
 
 def prewarm(proc: JobProcess):
@@ -88,6 +86,7 @@ async def entrypoint(ctx: JobContext):
                         agent.say("How do I sound now?", allow_interruptions=True)
                     )
 
+    # ✅ Explicitly join the same room as frontend
     room_name = os.getenv("ROOM_NAME", "cartesia-room")
     logger.info(f"Attempting to connect to room: {room_name}")
 
@@ -126,10 +125,5 @@ async def entrypoint(ctx: JobContext):
     await agent.say("Hi there, how are you doing today?", allow_interruptions=True)
 
 
-@app.command()
-def start():
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
-
-
 if __name__ == "__main__":
-    app()
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
